@@ -29,7 +29,7 @@ class Checkout
       final_price = scanned_products.values.inject(0) do |sum, someth|
         sum += someth[:p] * someth[:q]
       end
-      final_price > 60.0 ? final_price - (0.1 * final_price) : final_price
+      final_price > 60.0 ? (final_price - (0.1 * final_price)).round(2) : final_price
   end
 
   private

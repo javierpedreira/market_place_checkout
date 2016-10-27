@@ -39,6 +39,19 @@ describe Checkout do
         expect(checkout.total).to eql(36.95) 
       end
     end
+
+    context do
+      subject(:products) { [001, 002, 001, 003] }
+      before do
+        products.each do |product|
+          checkout.scan(product)
+        end
+      end
+
+      it do
+        expect(checkout.total).to eql(73.76) 
+      end
+    end
   end
 
   describe '#total' do
