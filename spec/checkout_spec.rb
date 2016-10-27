@@ -1,7 +1,8 @@
 require 'checkout'
 
 describe Checkout do
-  subject(:checkout) { Checkout.new }
+  subject(:checkout) { Checkout.new(total_threshold_promotion: 60,
+                                    final_price_discount: 10)}
   subject(:product) { 001 }
   describe '#scan' do
     context "I haven't scanned any product" do
@@ -57,7 +58,7 @@ describe Checkout do
   describe '#total' do
     context "I haven't scanned any product" do
       it 'returns zero' do
-        expect(checkout.total).to eql(0)
+        expect(checkout.total).to eql(0.0)
       end 
     end
   end
