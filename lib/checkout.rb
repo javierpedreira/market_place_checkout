@@ -1,18 +1,17 @@
 require 'warehouse'
 require 'product'
+require 'pry'
 
 class Checkout
-  def initialize(options = {})
-    @threshold_for_promotion = options[:total_threshold_promotion]
-    @discount = options[:total_discount].to_f / 100
+  def initialize(promotional_rules = {})
+    @promotional_rules = promotional_rules
     @final_price = 0
   end
 
   def scan(product_code)
     product = Warehouse.instance.product(product_code)
-
     if scanned?(product_code)
-      scanned_products[product_code][:price] = product_code == '001' ? 8.5 : product.price
+      scanned_products[product_code][:price] = product.price
       scanned_products[product_code][:quantity] += 1
     else
       scanned_products[product_code] = { price: product.price, quantity: 1 }
@@ -20,8 +19,13 @@ class Checkout
   end
 
   def total
-    @final_price = scanned_products.values.inject(0) do |sum, someth|
-      sum += someth[:price] * someth[:quantity]
+    scanned_products.each do |key, value|
+      price = value[:price]
+        if @promotional_rules[:product_promotions].include?(key)
+          rule = @promotional_rules[:product_promotions][key]
+          price = rule[:new_price] if rule[:min_quantity] <= value[:quantity]          
+        end
+      @final_price += price * value[:quantity]
     end
     with_promotion.round(2)
   end
@@ -29,8 +33,7 @@ class Checkout
   private
 
   def with_promotion
-    return @final_price if @threshold_for_promotion.nil? || @discount.nil?
-    @final_price > @threshold_for_promotion ? @final_price - (@discount * @final_price) : @final_price
+    return @final_price - reduction(@final_price)
   end
 
   def scanned_products
@@ -39,5 +42,13 @@ class Checkout
 
   def scanned?(code)
     scanned_products.include?(code)
+  end
+
+  def reduction(price)
+    max_reduction = 0
+    @promotional_rules[:total_promotion].each do |promotion|
+      max_reduction = promotion[:discount] if promotion[:threshold] <= price && promotion[:discount] >= max_reduction
+    end
+    price * (max_reduction.to_f / 100)
   end
 end

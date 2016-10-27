@@ -2,8 +2,9 @@ require 'checkout'
 require 'warehouse'
 
 describe Checkout do
-  subject(:checkout) { Checkout.new(total_threshold_promotion: 60,
-                                    total_discount: 10) }
+  subject(:checkout) { Checkout.new( total_promotion: [{threshold: 60, discount: 10}],
+                                     product_promotions: {'001' => { min_quantity: 2, new_price: 8.50 },
+                                                          '002' => { min_quantity: 200, new_price: 8.50 }})}
 
   before do
     Warehouse.instance.register('001' => Product.new('Lavender heart', 9.25),
