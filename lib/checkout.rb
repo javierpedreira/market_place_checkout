@@ -1,54 +1,50 @@
-require 'warehouse'
 require 'product'
-require 'pry'
 
 class Checkout
   def initialize(promotional_rules = {})
-    @promotional_rules = promotional_rules
-    @final_price = 0
+    @product_promotions = promotional_rules.key?(:product_promotions) ? promotional_rules[:product_promotions] : {}
+    @total_promotions = promotional_rules.key?(:total_promotion) ? promotional_rules[:total_promotion] : []
   end
 
-  def scan(product_code)
-    product = Warehouse.instance.product(product_code)
-    if scanned?(product_code)
-      scanned_products[product_code][:price] = product.price
-      scanned_products[product_code][:quantity] += 1
+  def scan(product)
+    if scanned_products.include?(product.id)
+      scanned_products[product.id][:quantity] += 1
+      scanned_products[product.id][:price] = calculate_price(product.id)
     else
-      scanned_products[product_code] = { price: product.price, quantity: 1 }
+      scanned_products[product.id] = { price: product.price, quantity: 1 }
     end
   end
 
   def total
-    scanned_products.each do |key, value|
-      price = value[:price]
-        if @promotional_rules[:product_promotions].include?(key)
-          rule = @promotional_rules[:product_promotions][key]
-          price = rule[:new_price] if rule[:min_quantity] <= value[:quantity]          
-        end
-      @final_price += price * value[:quantity]
-    end
-    with_promotion.round(2)
+    apply_discount(total_price)
   end
 
   private
 
-  def with_promotion
-    return @final_price - reduction(@final_price)
+  def calculate_price(product_code)
+    if @product_promotions.include?(product_code)
+      promotion = @product_promotions[product_code]
+
+      return promotion.value if promotion.applicable?(scanned_products[product_code][:quantity])
+    end
+
+    scanned_products[product_code][:price]
+  end
+
+  def total_price
+    scanned_products.inject(0) { |sum, (_, product)| sum += product[:price] * product[:quantity] }
+  end
+
+  def apply_discount(price)
+    max_reduction = 0
+    @total_promotions.each do |promotion|
+      max_reduction = promotion.value if promotion.applicable?(price) && promotion.value >= max_reduction
+    end
+
+    (price - (price * (max_reduction.to_f / 100))).round(2)
   end
 
   def scanned_products
     @scanned ||= {}
-  end
-
-  def scanned?(code)
-    scanned_products.include?(code)
-  end
-
-  def reduction(price)
-    max_reduction = 0
-    @promotional_rules[:total_promotion].each do |promotion|
-      max_reduction = promotion[:discount] if promotion[:threshold] <= price && promotion[:discount] >= max_reduction
-    end
-    price * (max_reduction.to_f / 100)
   end
 end
